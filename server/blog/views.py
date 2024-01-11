@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
+import openai
 
 # Charger les variables d'environnement depuis `.env`
 load_dotenv()
@@ -19,28 +20,33 @@ client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 @api_view(['POST'])
 @permission_classes([IsAdminUser])  # Autoriser uniquement les superusers
 def create_blog_post(request):
-    # Génération du titre
-    title_response = client.completions.create(
-        model="gpt-3.5-turbo-instruct",
-        prompt="Generate a catchy title for a blog post about the latest trends in technology.",
-        max_tokens=60
-    )
-    title = title_response.choices[0].text.strip() if title_response.choices else "Default Title"
+    try:
+     # Génération du titre
+        title_response = client.completions.create(
+            model="gpt-3.5-turbo-instruct",
+            prompt="Generate a catchy title for a blog post about the latest trends in technology.",
+            max_tokens=60
+        )
+        title = title_response.choices[0].text.strip() if title_response.choices else "Default Title"
 
-    # Génération du contenu
-    content_response = client.completions.create(
-        model="gpt-3.5-turbo-instruct",
-        prompt="Write a detailed blog post about the latest trends in technology.",
-        max_tokens=500
-    )
-    content = content_response.choices[0].text.strip() if content_response.choices else "Default Content"
-    # Assurez-vous que l'utilisateur est authentifié
-    if not request.user.is_authenticated:
-        return Response({"error": "Authentication required"}, status=401)
+        # Génération du contenu
+        content_response = client.completions.create(
+            model="gpt-3.5-turbo-instruct",
+            prompt="Write a detailed blog post about the latest trends in technology.",
+            max_tokens=500
+        )
+        content = content_response.choices[0].text.strip() if content_response.choices else "Default Content"
+        # Assurez-vous que l'utilisateur est authentifié
+        if not request.user.is_authenticated:
+            return Response({"error": "Authentication required"}, status=401)
 
-    # Création du blogpost avec l'auteur
-    blog_post = BlogPost(title=title, content=content, author=request.user)
-    blog_post.save()
+        # Création du blogpost avec l'auteur
+        blog_post = BlogPost(title=title, content=content, author=request.user)
+        blog_post.save()
+
+    except openai.error.AuthenticationError as e:
+        return Response({"success": False, "message": "OpenAI API key is invalid."})
+   
 
     return Response({"success": True, "message": "Blog post generated and saved."})
 
